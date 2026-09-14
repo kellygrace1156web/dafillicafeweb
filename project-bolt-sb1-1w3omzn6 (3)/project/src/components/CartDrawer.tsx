@@ -72,7 +72,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
   if (paymentConfig.online_enabled) {
     availablePaymentMethods.push({
       value: 'online',
-      label: 'Online Payment',
+      label: 'Online Mobile Wallet / Bank Transfer',
       icon: Wallet,
       desc: 'EasyPaisa / JazzCash / Bank Transfer',
     });
@@ -121,7 +121,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
     lines.push(
       `*Total: ${formatCurrency(total)}*`,
       ``,
-      `*Payment:* ${paymentMethod === 'online' ? 'Online' : 'Cash'}`,
+      `*Payment:* ${paymentMethod === 'online' ? 'Online Mobile Wallet / Bank Transfer' : 'Cash on Delivery / Pay at Counter'}`,
     );
     if (paymentMethod === 'online' && transactionId) {
       lines.push(`*Transaction ID:* ${transactionId}`);
@@ -173,7 +173,6 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
       const orderId = data?.id ?? 'unknown';
       setPlacedOrderId(orderId);
       setPlacedOrder(data as Order);
-      setShowReceipt(true);
 
       const msg = buildWhatsAppMessage(orderId);
       if (whatsappNumber) {
@@ -206,6 +205,9 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
     }
     onClose();
   };
+
+  const paymentLabel = (method: PaymentMethod) =>
+    method === 'online' ? 'Online Mobile Wallet / Bank Transfer' : 'Cash on Delivery / Pay at Counter';
 
   return (
     <>
@@ -265,7 +267,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
                 </div>
                 <div className="flex justify-between text-stone-500">
                   <span>Payment</span>
-                  <span className="font-semibold text-stone-700">{placedOrder.payment_method === 'online' ? 'Online' : 'Cash'}</span>
+                  <span className="font-semibold text-stone-700">{paymentLabel(placedOrder.payment_method)}</span>
                 </div>
                 {placedOrder.payment_method === 'online' && placedOrder.transaction_id && (
                   <div className="flex justify-between text-stone-500">
@@ -405,79 +407,11 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
                 </div>
               </div>
 
-              {/* Customer details form */}
-              <div className="space-y-3 pt-2">
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Customer name *"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
-                      errors.name
-                        ? 'border-red-400 focus:border-red-500'
-                        : 'border-stone-200 focus:border-sage-400'
-                    }`}
-                  />
-                  {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
-                </div>
-                <div>
-                  <input
-                    type="tel"
-                    placeholder="Phone number *"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
-                      errors.phone
-                        ? 'border-red-400 focus:border-red-500'
-                        : 'border-stone-200 focus:border-sage-400'
-                    }`}
-                  />
-                  {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
-                </div>
-                {orderType === 'dine-in' && (
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Table number *"
-                      value={tableNumber}
-                      onChange={(e) => setTableNumber(e.target.value)}
-                      className={`w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
-                        errors.tableNumber
-                          ? 'border-red-400 focus:border-red-500'
-                          : 'border-stone-200 focus:border-sage-400'
-                      }`}
-                    />
-                    {errors.tableNumber && (
-                      <p className="text-xs text-red-500 mt-1">{errors.tableNumber}</p>
-                    )}
-                  </div>
-                )}
-                {orderType === 'delivery' && (
-                  <div>
-                    <textarea
-                      placeholder="Delivery address *"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      rows={2}
-                      className={`w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-colors resize-none ${
-                        errors.address
-                          ? 'border-red-400 focus:border-red-500'
-                          : 'border-stone-200 focus:border-sage-400'
-                      }`}
-                    />
-                    {errors.address && (
-                      <p className="text-xs text-red-500 mt-1">{errors.address}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Payment method selector */}
+              {/* Payment method selector — right after Order Type */}
               {availablePaymentMethods.length > 0 && (
                 <div className="pt-2">
                   <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wide mb-2">
-                    Select Payment Method
+                    Payment Method
                   </label>
                   <div className="space-y-2">
                     {availablePaymentMethods.map(({ value, label, icon: Icon, desc }) => (
@@ -510,7 +444,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
                 </div>
               )}
 
-              {/* Online payment details */}
+              {/* Online payment details — shown when Online is selected */}
               {paymentMethod === 'online' && hasOnlineDetails && (
                 <div className="bg-stone-100 rounded-xl p-4 space-y-3">
                   <div className="flex items-center gap-2 text-xs font-semibold text-stone-700 uppercase tracking-wide">
@@ -582,11 +516,80 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Footer: bill summary + checkout */}
-            <div className="border-t border-stone-200 bg-white px-5 py-4 space-y-3">
-              <div className="space-y-1.5 text-sm">
+              {/* Customer details form — after payment block */}
+              <div className="space-y-3 pt-2">
+                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wide mb-2">
+                  Customer Details
+                </label>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Customer name *"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={`w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
+                      errors.name
+                        ? 'border-red-400 focus:border-red-500'
+                        : 'border-stone-200 focus:border-sage-400'
+                    }`}
+                  />
+                  {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+                </div>
+                <div>
+                  <input
+                    type="tel"
+                    placeholder="Phone number *"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className={`w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
+                      errors.phone
+                        ? 'border-red-400 focus:border-red-500'
+                        : 'border-stone-200 focus:border-sage-400'
+                    }`}
+                  />
+                  {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
+                </div>
+                {orderType === 'dine-in' && (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Table number *"
+                      value={tableNumber}
+                      onChange={(e) => setTableNumber(e.target.value)}
+                      className={`w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
+                        errors.tableNumber
+                          ? 'border-red-400 focus:border-red-500'
+                          : 'border-stone-200 focus:border-sage-400'
+                      }`}
+                    />
+                    {errors.tableNumber && (
+                      <p className="text-xs text-red-500 mt-1">{errors.tableNumber}</p>
+                    )}
+                  </div>
+                )}
+                {orderType === 'delivery' && (
+                  <div>
+                    <textarea
+                      placeholder="Delivery address *"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      rows={2}
+                      className={`w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-colors resize-none ${
+                        errors.address
+                          ? 'border-red-400 focus:border-red-500'
+                          : 'border-stone-200 focus:border-sage-400'
+                      }`}
+                    />
+                    {errors.address && (
+                      <p className="text-xs text-red-500 mt-1">{errors.address}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Bill summary — inside scrollable area, before the confirm button */}
+              <div className="space-y-1.5 text-sm pt-2">
                 <div className="flex justify-between text-stone-600">
                   <span>Subtotal</span>
                   <span className="font-medium">{formatCurrency(subtotal)}</span>
@@ -602,6 +605,10 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
                   <span className="text-sage-900">{formatCurrency(total)}</span>
                 </div>
               </div>
+            </div>
+
+            {/* Footer: Confirm Order button at the very bottom */}
+            <div className="border-t border-stone-200 bg-white px-5 py-4">
               {!isOpen ? (
                 <div className="w-full py-3.5 rounded-xl bg-stone-200 text-stone-500 font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
                   <Lock className="w-4 h-4" />
@@ -631,7 +638,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
         )}
       </aside>
 
-      {/* Receipt modal shown after order placement */}
+      {/* Receipt modal — only shown when user clicks "View / Print Receipt" */}
       {showReceipt && placedOrder && (
         <ReceiptModal
           order={placedOrder}

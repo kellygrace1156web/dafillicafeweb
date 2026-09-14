@@ -14,6 +14,7 @@ export function ReceiptModal({ order, cafeAddress, onClose }: ReceiptModalProps)
 
   const created = new Date(order.created_at);
   const isOnline = order.payment_method === 'online';
+  const paymentLabel = isOnline ? 'Online Mobile Wallet / Bank Transfer' : 'Cash on Delivery / Pay at Counter';
 
   return (
     <>
@@ -92,7 +93,7 @@ export function ReceiptModal({ order, cafeAddress, onClose }: ReceiptModalProps)
               )}
               <div className="flex justify-between">
                 <span className="text-stone-500">Payment</span>
-                <span className="font-semibold">{isOnline ? 'Online' : 'Cash'}</span>
+                <span className="font-semibold">{paymentLabel}</span>
               </div>
               {isOnline && order.transaction_id && (
                 <div className="flex justify-between">

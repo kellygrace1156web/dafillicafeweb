@@ -32,6 +32,7 @@ function CafeApp() {
     () => sessionStorage.getItem('admin_unlocked') === '1'
   );
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +43,8 @@ function CafeApp() {
   const loadData = useCallback(async () => {
     try {
       const { categories: visibleCats, products: visibleProds, allCategories: allCats } = await fetchMenuData();
-      setCategories(visibleCats.length > 0 ? visibleCats : allCats);
+      setCategories(visibleCats);
+      setAllCategories(allCats);
       setProducts(visibleProds);
       setAllProducts(await fetchProducts(false));
     } catch (err) {
@@ -177,7 +179,7 @@ function CafeApp() {
           currentView="admin"
         />
         <AdminDashboard
-          categories={categories}
+          categories={allCategories}
           products={allProducts}
           onProductsChanged={loadData}
           onCategoriesChanged={loadData}

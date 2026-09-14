@@ -12,8 +12,8 @@ type Tab = 'menu' | 'orders' | 'analytics' | 'inventory' | 'settings';
 type AdminDashboardProps = {
   categories: Category[];
   products: Product[];
-  onProductsChanged: () => void;
-  onCategoriesChanged: () => void;
+  onProductsChanged: () => void | Promise<void>;
+  onCategoriesChanged: () => void | Promise<void>;
 };
 
 export function AdminDashboard({

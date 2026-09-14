@@ -16,8 +16,8 @@ import { formatCurrency, slugify } from '@/lib/format';
 type AdminProductsProps = {
   categories: Category[];
   products: Product[];
-  onProductsChanged: () => void;
-  onCategoriesChanged: () => void;
+  onProductsChanged: () => void | Promise<void>;
+  onCategoriesChanged: () => void | Promise<void>;
 };
 
 type FormData = {
@@ -135,8 +135,8 @@ export function AdminProducts({
         const { error } = await supabase.from('products').insert(payload);
         if (error) throw error;
       }
+      await onProductsChanged();
       setShowForm(false);
-      onProductsChanged();
     } catch (err) {
       alert('Failed to save product. ' + (err as Error).message);
     } finally {
@@ -150,7 +150,7 @@ export function AdminProducts({
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
       setConfirmDelete(null);
-      onProductsChanged();
+      await onProductsChanged();
     } catch (err) {
       alert('Failed to delete product. ' + (err as Error).message);
     } finally {
@@ -168,9 +168,9 @@ export function AdminProducts({
         sort_order: categories.length + 1,
       });
       if (error) throw error;
+      await onCategoriesChanged();
       setCatName('');
       setShowCatForm(false);
-      onCategoriesChanged();
     } catch (err) {
       alert('Failed to add category. ' + (err as Error).message);
     } finally {
@@ -183,8 +183,8 @@ export function AdminProducts({
     try {
       const { error } = await supabase.from('categories').delete().eq('id', id);
       if (error) throw error;
-      onCategoriesChanged();
-      onProductsChanged();
+      await onCategoriesChanged();
+      await onProductsChanged();
     } catch (err) {
       alert('Failed to delete category. ' + (err as Error).message);
     }

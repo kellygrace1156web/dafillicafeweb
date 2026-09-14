@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.hero-background img {
+  object-position: center;
+}
+
+.hero-overlay {
+  background: rgb(12 10 9 / 45%);
+}
+
+@media (max-width: 768px) {
+  .hero-background img {
+    object-position: 65% center;
+  }
+
+  .hero-overlay {
+    background: rgb(12 10 9 / 55%);
+  }
+}
+
+@media print {
+  body * { visibility: hidden; }
+  #receipt-print, #receipt-print * { visibility: visible; }
+  #receipt-print { position: absolute; left: 0; top: 0; width: 100%; }
+  .no-print { display: none !important; }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Hide Bolt Badge & Watermark */
+[class*="bolt-"],
+div[style*="z-index: 9999"],
+a[href*="bolt.new"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

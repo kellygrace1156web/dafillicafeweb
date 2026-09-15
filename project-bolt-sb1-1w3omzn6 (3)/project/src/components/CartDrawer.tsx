@@ -86,8 +86,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = 'Name is required';
-    if (!phone.trim()) e.phone = 'Phone number is required';
-    else if (!/^[0-9+\-\s()]{7,}$/.test(phone.trim())) e.phone = 'Enter a valid phone number';
+    if (phone.trim() && !/^[0-9+\-\s()]{7,}$/.test(phone.trim())) e.phone = 'Enter a valid phone number';
     if (orderType === 'dine-in' && !tableNumber.trim()) e.tableNumber = 'Table number is required';
     if (orderType === 'delivery' && !address.trim()) e.address = 'Address is required';
     if (paymentMethod === 'online' && !transactionId.trim()) e.transactionId = 'Transaction ID is required for online payment';
@@ -539,7 +538,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
                 <div>
                   <input
                     type="tel"
-                    placeholder="Phone number *"
+                    placeholder="Phone number (optional)"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className={`w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-colors ${

@@ -90,6 +90,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
     if (orderType === 'dine-in' && !tableNumber.trim()) e.tableNumber = 'Table number is required';
     if (orderType === 'delivery' && !address.trim()) e.address = 'Address is required';
     if (paymentMethod === 'online' && !transactionId.trim()) e.transactionId = 'Transaction ID is required for online payment';
+    else if (paymentMethod === 'online' && transactionId.trim().length < 11) e.transactionId = 'Transaction ID must be at least 11 characters';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -485,7 +486,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
                     </label>
                     <input
                       type="text"
-                      placeholder="Enter your transaction ID"
+                      placeholder="Enter at least 11 characters"
                       value={transactionId}
                       onChange={(e) => setTransactionId(e.target.value)}
                       className={`w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-colors ${

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Loader2,
   Clock,
@@ -19,6 +19,7 @@ import {
   X,
   ShoppingBag,
   Printer,
+  Bell,
 } from 'lucide-react';
 import { supabase, type Order, type Product, type Category, type OrderItem } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/format';
@@ -58,6 +59,8 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
   const [filter, setFilter] = useState<'all' | 'pending' | 'preparing' | 'completed'>('all');
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [cafeAddress, setCafeAddress] = useState('I-8 Markaz, Islamabad');
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const [newOrderAlert, setNewOrderAlert] = useState<Order | null>(null);
 
   // POS modal state
   const [showPOS, setShowPOS] = useState(false);
@@ -101,6 +104,88 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
     }
     loadAddress();
   }, []);
+
+  // === Real-time new order detection via polling ===
+  const playNotificationSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const notes = [880, 1108.73, 1318.51];
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        const start = ctx.currentTime + i * 0.15;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.3, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+        osc.start(start);
+        osc.stop(start + 0.3);
+      });
+    } catch {
+      // Audio not available (e.g. before user interaction)
+    }
+  };
+
+  const showBrowserNotification = (order: Order) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification('New Order Received!', {
+          body: `${order.customer_name} — ${order.order_type.replace('-', ' ')} · ${formatCurrency(order.total)}`,
+          tag: order.id,
+        });
+      } catch {
+        // Notification creation failed
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Seed known IDs from the initial load so we don't alert on existing orders
+    if (orders.length > 0 && knownOrderIdsRef.current.size === 0) {
+      orders.forEach((o) => knownOrderIdsRef.current.add(o.id));
+    }
+  }, [orders]);
+
+  useEffect(() => {
+    // Request notification permission on mount
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+
+    const interval = setInterval(async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error || !data) return;
+
+      const freshOrders = data as Order[];
+      const newPending: Order[] = [];
+
+      freshOrders.forEach((o) => {
+        if (!knownOrderIdsRef.current.has(o.id) && o.status === 'pending') {
+          newPending.push(o);
+          knownOrderIdsRef.current.add(o.id);
+        }
+      });
+
+      if (newPending.length > 0) {
+        setOrders(freshOrders);
+        playNotificationSound();
+        showBrowserNotification(newPending[0]);
+        setNewOrderAlert(newPending[0]);
+        onOrdersChanged?.();
+      }
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [onOrdersChanged]);
 
   const updateStatus = async (id: string, status: Order['status']) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
@@ -464,6 +549,49 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
         </div>
       )}
 
+      {/* New order alert popup */}
+      {newOrderAlert && (
+        <div className="fixed top-4 right-4 z-[95] bg-white rounded-xl shadow-2xl border-2 border-sage-500 p-4 w-80 animate-in slide-in-from-right">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center flex-shrink-0">
+              <Bell className="w-5 h-5 text-sage-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-bold text-stone-900 text-sm">New Order Received!</h4>
+              <p className="text-xs text-stone-600 mt-1">
+                {newOrderAlert.customer_name} · {newOrderAlert.order_type.replace('-', ' ')}
+              </p>
+              <p className="text-xs font-semibold text-sage-900 mt-0.5">
+                {formatCurrency(newOrderAlert.total)} · {newOrderAlert.items.length} item{newOrderAlert.items.length !== 1 ? 's' : ''}
+              </p>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => {
+                    setReceiptOrder(newOrderAlert);
+                    setNewOrderAlert(null);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-sage-900 text-sage-50 text-xs font-semibold hover:bg-sage-800 transition-colors"
+                >
+                  View Receipt
+                </button>
+                <button
+                  onClick={() => setNewOrderAlert(null)}
+                  className="px-3 py-1.5 rounded-lg text-stone-500 text-xs font-semibold hover:bg-stone-100 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => setNewOrderAlert(null)}
+              className="p-1 text-stone-300 hover:text-stone-500 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Receipt modal */}
       {receiptOrder && (
         <ReceiptModal
@@ -475,10 +603,10 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
 
       {/* POS / New Order modal */}
       {showPOS && (
-        <div className="fixed inset-0 z-[85] bg-stone-950/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-stone-50 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[85] bg-stone-950/50 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4">
+          <div className="bg-stone-50 rounded-none sm:rounded-2xl shadow-2xl w-full max-w-4xl h-full sm:max-h-[92vh] overflow-hidden flex flex-col">
             {/* POS Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-stone-200">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-white border-b border-stone-200 flex-shrink-0">
               <h3 className="font-bold text-lg text-stone-900 flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-sage-800" />
                 Create New Order
@@ -491,11 +619,11 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
               </button>
             </div>
 
-            {/* POS Body: two columns on desktop */}
-            <div className="flex-1 overflow-y-auto">
+            {/* POS Body: two columns on desktop, stacked scroll on mobile */}
+            <div className="flex-1 overflow-y-auto overscroll-contain">
               <div className="flex flex-col lg:flex-row min-h-full">
                 {/* Left: Customer details + cart */}
-                <div className="lg:w-[400px] flex-shrink-0 bg-white lg:border-r border-stone-200 p-5 space-y-4">
+                <div className="lg:w-[400px] flex-shrink-0 bg-white lg:border-r border-stone-200 p-4 sm:p-5 space-y-4">
                   {/* Order type */}
                   <div>
                     <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wide mb-2">
@@ -599,10 +727,10 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                     </div>
                     {posCart.length === 0 ? (
                       <div className="bg-stone-50 rounded-lg p-4 text-center text-sm text-stone-400 border border-dashed border-stone-200">
-                        Click items on the right to add them
+                        Tap items to add them
                       </div>
                     ) : (
-                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      <div className="space-y-2 max-h-[200px] sm:max-h-[240px] overflow-y-auto overscroll-contain">
                         {posCart.map((item) => (
                           <div
                             key={item.id}
@@ -619,18 +747,18 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                             <div className="flex items-center gap-1 bg-white rounded-full border border-stone-200">
                               <button
                                 onClick={() => decrementCart(item.id)}
-                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-stone-100 text-stone-700"
+                                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-stone-100 text-stone-700 touch-manipulation"
                               >
-                                <Minus className="w-3 h-3" />
+                                <Minus className="w-3.5 h-3.5" />
                               </button>
-                              <span className="min-w-[16px] text-center text-xs font-bold text-stone-800">
+                              <span className="min-w-[20px] text-center text-xs font-bold text-stone-800">
                                 {item.quantity}
                               </span>
                               <button
                                 onClick={() => incrementCart(item.id)}
-                                className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-stone-100 text-stone-700"
+                                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-stone-100 text-stone-700 touch-manipulation"
                               >
-                                <Plus className="w-3 h-3" />
+                                <Plus className="w-3.5 h-3.5" />
                               </button>
                             </div>
                             <span className="text-sm font-bold text-sage-900 min-w-[60px] text-right">
@@ -672,7 +800,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                 </div>
 
                 {/* Right: Item picker */}
-                <div className="flex-1 p-5 flex flex-col">
+                <div className="flex-1 p-4 sm:p-5 flex flex-col min-h-0">
                   {/* Category tabs */}
                   {posLoading ? (
                     <div className="flex-1 flex items-center justify-center">
@@ -680,12 +808,12 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                     </div>
                   ) : (
                     <>
-                      <div className="flex gap-1.5 mb-4 flex-wrap">
+                      <div className="flex gap-1.5 mb-4 flex-wrap overflow-x-auto overscroll-contain pb-1">
                         {posCategories.map((cat) => (
                           <button
                             key={cat.id}
                             onClick={() => setPosActiveCat(cat.id)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                            className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap touch-manipulation ${
                               posActiveCat === cat.id
                                 ? 'bg-sage-900 text-sage-50'
                                 : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -697,7 +825,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                       </div>
 
                       {/* Products grid */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto" style={{ maxHeight: 'calc(92vh - 280px)' }}>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto overscroll-contain flex-1" style={{ maxHeight: 'calc(92vh - 300px)' }}>
                         {posFilteredProducts.map((p) => {
                           const inCart = posCart.find((i) => i.id === p.id);
                           return (
@@ -738,7 +866,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
             </div>
 
             {/* POS Footer: Confirm & Print */}
-            <div className="border-t border-stone-200 bg-white px-6 py-4 flex items-center justify-between gap-3">
+            <div className="border-t border-stone-200 bg-white px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3 flex-shrink-0 flex-wrap">
               <div className="text-sm text-stone-600">
                 {posCart.length > 0 ? (
                   <span>

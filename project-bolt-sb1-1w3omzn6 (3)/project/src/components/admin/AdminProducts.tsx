@@ -106,7 +106,13 @@ export function AdminProducts({
     }
     const reader = new FileReader();
     reader.onload = () => {
-      setEditing((prev) => ({ ...prev, image_url: reader.result as string }));
+      const result = reader.result;
+      if (typeof result === 'string' && result.startsWith('data:image')) {
+        setEditing((prev) => ({ ...prev, image_url: result }));
+      }
+    };
+    reader.onerror = () => {
+      alert('Failed to read the image file. Please try again.');
     };
     reader.readAsDataURL(file);
   };
@@ -118,12 +124,14 @@ export function AdminProducts({
     }
     setSaving(true);
     try {
+      const trimmedUrl = editing.image_url.trim();
+      const imageUrl = trimmedUrl || 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400';
       const payload = {
         name: editing.name.trim(),
         description: editing.description.trim(),
         price: parseFloat(editing.price),
         tax_percentage: parseFloat(editing.tax_percentage) || 0,
-        image_url: editing.image_url.trim(),
+        image_url: imageUrl,
         category_id: editing.category_id,
         is_veg: editing.is_veg,
         is_in_stock: editing.is_in_stock,
@@ -132,7 +140,7 @@ export function AdminProducts({
         const { error } = await supabase.from('products').update(payload).eq('id', editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('products').insert(payload);
+        const { error } = await supabase.from('products').insert([payload]);
         if (error) throw error;
       }
       await onProductsChanged();
@@ -530,9 +538,10 @@ export function AdminProducts({
                 {editing.image_url && (
                   <div className="mt-3 relative">
                     <img
-                      src={editing.image_url}
+                      src={editing.image_url.startsWith('data:image') ? editing.image_url : editing.image_url}
                       alt="Preview"
                       className="w-full h-32 rounded-lg object-cover border border-stone-200"
+                      onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.3'; }}
                     />
                     <button
                       type="button"

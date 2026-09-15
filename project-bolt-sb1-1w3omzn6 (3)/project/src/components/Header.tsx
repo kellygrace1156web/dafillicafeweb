@@ -1,4 +1,4 @@
-import { Coffee, ShoppingCart, Search, X } from 'lucide-react';
+import { Coffee, ShoppingCart, Search, X, Truck } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 type HeaderProps = {
@@ -8,6 +8,7 @@ type HeaderProps = {
   onSearchChange: (q: string) => void;
   onNavigate: (view: 'cafe' | 'admin') => void;
   currentView: 'cafe' | 'admin';
+  onTrackActiveOrder?: (orderId: string) => void;
 };
 
 export function Header({
@@ -17,14 +18,30 @@ export function Header({
   onSearchChange,
   onNavigate,
   currentView,
+  onTrackActiveOrder,
 }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const checkActiveOrder = () => {
+      const id = localStorage.getItem('active_order_id');
+      setActiveOrderId(id);
+    };
+    checkActiveOrder();
+    window.addEventListener('active-order-changed', checkActiveOrder);
+    window.addEventListener('storage', checkActiveOrder);
+    return () => {
+      window.removeEventListener('active-order-changed', checkActiveOrder);
+      window.removeEventListener('storage', checkActiveOrder);
+    };
   }, []);
 
   return (
@@ -123,6 +140,17 @@ export function Header({
             <X className="w-5 h-5 text-stone-600" />
           </button>
         </div>
+      )}
+
+      {/* Floating Track Active Order button */}
+      {activeOrderId && onTrackActiveOrder && currentView === 'cafe' && (
+        <button
+          onClick={() => onTrackActiveOrder(activeOrderId)}
+          className="fixed bottom-5 right-5 z-[55] flex items-center gap-2 px-5 py-3 rounded-full bg-sage-900 text-sage-50 shadow-xl hover:bg-sage-800 transition-all hover:scale-105 active:scale-95 animate-in slide-in-from-bottom"
+        >
+          <Truck className="w-5 h-5" />
+          <span className="text-sm font-bold">Track Active Order</span>
+        </button>
       )}
     </header>
   );

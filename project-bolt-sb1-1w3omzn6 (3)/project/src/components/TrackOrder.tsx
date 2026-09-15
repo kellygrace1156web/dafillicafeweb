@@ -47,6 +47,14 @@ export function TrackOrder({ orderId, onBack }: TrackOrderProps) {
       }
       setOrder(data as Order);
       setLoading(false);
+
+      if ((data as Order).status === 'completed') {
+        const storedId = localStorage.getItem('active_order_id');
+        if (storedId === orderId) {
+          localStorage.removeItem('active_order_id');
+          window.dispatchEvent(new Event('active-order-changed'));
+        }
+      }
     }
 
     fetchOrder();
@@ -58,7 +66,15 @@ export function TrackOrder({ orderId, onBack }: TrackOrderProps) {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` },
         (payload) => {
-          setOrder(payload.new as Order);
+          const updated = payload.new as Order;
+          setOrder(updated);
+          if (updated.status === 'completed') {
+            const storedId = localStorage.getItem('active_order_id');
+            if (storedId === orderId) {
+              localStorage.removeItem('active_order_id');
+              window.dispatchEvent(new Event('active-order-changed'));
+            }
+          }
         }
       )
       .subscribe();

@@ -86,7 +86,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = 'Name is required';
-    if (phone.trim() && !/^[0-9+\-\s()]{7,}$/.test(phone.trim())) e.phone = 'Enter a valid phone number';
+    // Phone is fully optional for all order types — no validation when blank
     if (orderType === 'dine-in' && !tableNumber.trim()) e.tableNumber = 'Table number is required';
     if (orderType === 'delivery' && !address.trim()) e.address = 'Address is required';
     if (paymentMethod === 'online' && !transactionId.trim()) e.transactionId = 'Transaction ID is required for online payment';
@@ -173,6 +173,11 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
       const orderId = data?.id ?? 'unknown';
       setPlacedOrderId(orderId);
       setPlacedOrder(data as Order);
+
+      if (orderId !== 'unknown') {
+        localStorage.setItem('active_order_id', orderId);
+        window.dispatchEvent(new Event('active-order-changed'));
+      }
 
       const msg = buildWhatsAppMessage(orderId);
       if (whatsappNumber) {

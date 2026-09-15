@@ -198,6 +198,7 @@ function CafeApp() {
         onSearchChange={setSearchQuery}
         onNavigate={navigate}
         currentView="cafe"
+        onTrackActiveOrder={navigateToTrack}
       />
 
       {/* Closed banner */}

@@ -35,6 +35,7 @@ export function Hero({
           loading="eager"
           decoding="async"
           fetchPriority="high"
+          style={{ contentVisibility: 'auto' }}
         />
         <div className="hero-overlay absolute inset-0" />
       </div>

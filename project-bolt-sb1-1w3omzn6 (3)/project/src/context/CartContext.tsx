@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import type { Product } from '@/lib/supabase';
-import { TAX_RATE } from '@/lib/constants';
 
 export type CartItem = {
   id: string;
@@ -84,7 +83,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const { taxBreakdown, totalTax, total } = useMemo(() => {
     const groups: Record<string, { rate: number; amount: number }> = {};
     for (const item of items) {
-      const rate = item.tax_percentage > 0 ? item.tax_percentage / 100 : TAX_RATE;
+      const rate = item.tax_percentage / 100;
       const key = String(rate);
       if (!groups[key]) groups[key] = { rate, amount: 0 };
       groups[key].amount += item.price * item.quantity * rate;

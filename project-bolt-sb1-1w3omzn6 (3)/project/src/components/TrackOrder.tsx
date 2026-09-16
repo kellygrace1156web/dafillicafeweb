@@ -258,7 +258,7 @@ export function TrackOrder({ orderId, onBack }: TrackOrderProps) {
               <span>{formatCurrency(Number(order.subtotal))}</span>
             </div>
             <div className="flex justify-between text-stone-600">
-              <span>Tax (10%)</span>
+              <span>Tax</span>
               <span>{formatCurrency(Number(order.tax))}</span>
             </div>
             <div className="flex justify-between text-stone-900 font-bold text-base pt-1.5 border-t border-stone-100">

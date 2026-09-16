@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { supabase, type Order, type Product, type Category, type OrderItem } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/format';
-import { TAX_RATE, CAFE_NAME } from '@/lib/constants';
+import { CAFE_NAME } from '@/lib/constants';
 import { ReceiptModal } from '@/components/ReceiptModal';
 
 type AdminOrdersProps = {
@@ -292,7 +292,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
 
   const posSubtotal = posCart.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const posTax = posCart.reduce((sum, i) => {
-    const rate = i.tax_percentage > 0 ? i.tax_percentage / 100 : TAX_RATE;
+    const rate = i.tax_percentage / 100;
     return sum + i.price * i.quantity * rate;
   }, 0);
   const posTotal = posSubtotal + posTax;

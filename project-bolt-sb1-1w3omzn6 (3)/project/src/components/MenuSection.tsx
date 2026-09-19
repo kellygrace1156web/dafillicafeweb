@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Category, Product } from '@/lib/supabase';
 import { ProductCard } from './ProductCard';
 
@@ -6,7 +7,7 @@ type MenuSectionProps = {
   products: Product[];
 };
 
-export function MenuSection({ category, products }: MenuSectionProps) {
+export const MenuSection = memo(function MenuSection({ category, products }: MenuSectionProps) {
   if (products.length === 0) return null;
 
   return (
@@ -27,4 +28,4 @@ export function MenuSection({ category, products }: MenuSectionProps) {
       </div>
     </section>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { Coffee, ShoppingCart, Search, X, Truck } from 'lucide-react';
+import { ShoppingCart, Search, X, Truck } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 type HeaderProps = {
@@ -60,7 +60,13 @@ export function Header({
             className="flex items-center gap-3 group"
           >
             <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl bg-gradient-to-br from-sage-700 to-sage-900 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-              <Coffee className="w-6 h-6 text-sage-50" />
+              <img
+                src="/8f152f2e-d820-417f-9f9d-8c2b43ca7fe0.png"
+                alt="Da Filli Cafe logo"
+                className="w-9 h-9 md:w-10 md:h-10 object-contain mix-blend-screen"
+                width="160"
+                height="160"
+              />
             </div>
             <div className="text-left">
               <h1 className="text-lg md:text-xl font-bold text-sage-950 leading-none tracking-tight">

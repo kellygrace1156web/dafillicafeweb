@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Plus, Minus, Leaf } from 'lucide-react';
 import type { Product } from '@/lib/supabase';
 import { useCart } from '@/context/CartContext';
@@ -7,7 +8,7 @@ type ProductCardProps = {
   product: Product;
 };
 
-export function ProductCard({ product }: ProductCardProps) {
+export const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
   const { getQuantity, addItem, incrementItem, decrementItem } = useCart();
   const qty = getQuantity(product.id);
 
@@ -94,4 +95,4 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
     </div>
   );
-}
+});

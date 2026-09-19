@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Search } from 'lucide-react';
 import type { Category } from '@/lib/supabase';
 import { siteConfig } from '@/config/siteConfig';
@@ -7,18 +8,16 @@ type HeroProps = {
   onSearchChange: (q: string) => void;
   categories: Category[];
   onCategoryClick: (slug: string) => void;
-  activeCategory: string;
   isOpen: boolean;
   openingTime: string;
   closingTime: string;
 };
 
-export function Hero({
+export const Hero = memo(function Hero({
   searchQuery,
   onSearchChange,
   categories,
   onCategoryClick,
-  activeCategory,
   isOpen,
   openingTime,
   closingTime,
@@ -33,9 +32,8 @@ export function Hero({
           width="1920"
           height="1080"
           loading="eager"
-          decoding="async"
           fetchPriority="high"
-          style={{ contentVisibility: 'auto' }}
+          decoding="sync"
         />
         <div className="hero-overlay absolute inset-0" />
       </div>
@@ -84,11 +82,7 @@ export function Hero({
               <button
                 key={cat.id}
                 onClick={() => onCategoryClick(cat.slug)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105 ${
-                  activeCategory === cat.slug
-                    ? 'bg-sage-400 text-stone-900 shadow-lg'
-                    : 'bg-white/15 backdrop-blur-sm text-white border border-white/25 hover:bg-white/25'
-                }`}
+                className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105 bg-white/15 backdrop-blur-sm text-white border border-white/25 hover:bg-white/25"
               >
                 {cat.name}
               </button>
@@ -100,4 +94,4 @@ export function Hero({
       <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-stone-50 to-transparent" />
     </section>
   );
-}
+});

@@ -18,10 +18,7 @@ export const MenuSection = memo(function MenuSection({ category, products }: Men
           {products.length} item{products.length !== 1 ? 's' : ''}
         </span>
       </div>
-      <div
-        className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 md:gap-5"
-        style={{ contentVisibility: 'auto', containIntrinsicSize: '0 320px' }}
-      >
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 md:gap-5">
         {products.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}

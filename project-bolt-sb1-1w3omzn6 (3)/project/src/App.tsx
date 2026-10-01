@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, UtensilsCrossed, Lock, Instagram, Facebook } from 'lucide-react';
+import { Loader2, UtensilsCrossed, Lock, Instagram, Facebook, MapPin } from 'lucide-react';
 import { type Category, type Product } from '@/lib/supabase';
 import { fetchMenuData, fetchProducts } from '@/lib/data';
 import { CartProvider, useCart } from '@/context/CartContext';
@@ -290,6 +290,15 @@ function CafeApp() {
               <span className="text-stone-500">
                 {isOpen ? `Open now · ${openingTime} – ${closingTime}` : `Opens at ${openingTime}`}
               </span>
+              <a
+                href="https://maps.app.goo.gl/STsA3eTZDNg52Aqz8"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sage-300 hover:text-sage-100 transition-colors"
+              >
+                <MapPin className="w-4 h-4" />
+                Find us on Google Maps
+              </a>
             </div>
           </div>
 

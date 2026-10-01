@@ -58,6 +58,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'preparing' | 'completed'>('all');
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
+  const [receiptType, setReceiptType] = useState<'kot' | 'customer'>('customer');
   const [cafeAddress, setCafeAddress] = useState('I-8 Markaz, Islamabad');
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const [newOrderAlert, setNewOrderAlert] = useState<Order | null>(null);
@@ -195,6 +196,26 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
     } catch {
       alert('Failed to update order status');
     }
+  };
+
+  const updatePaymentStatus = async (id: string, payment_status: Order['payment_status']) => {
+    const previous = orders.find((order) => order.id === id)?.payment_status;
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, payment_status } : o)));
+
+    try {
+      const { error } = await supabase.from('orders').update({ payment_status }).eq('id', id);
+      if (error) throw error;
+    } catch {
+      if (previous) {
+        setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, payment_status: previous } : o)));
+      }
+      alert('Failed to update payment status');
+    }
+  };
+
+  const openReceipt = (order: Order, type: 'kot' | 'customer') => {
+    setReceiptOrder(order);
+    setReceiptType(type);
   };
 
   const reloadOrders = async () => {
@@ -360,7 +381,8 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
       setShowPOS(false);
       resetPOS();
 
-      // Trigger the receipt print modal
+      // Trigger the customer receipt print modal
+      setReceiptType('customer');
       setReceiptOrder(newOrder);
     } catch (err) {
       setPosError('Failed to create order. ' + (err as Error).message);
@@ -435,12 +457,25 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                     </p>
                     <h3 className="font-bold text-stone-900 mt-0.5">{order.customer_name}</h3>
                   </div>
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_CONFIG[order.status].color}`}
-                  >
-                    <StatusIcon className="w-3.5 h-3.5" />
-                    {STATUS_CONFIG[order.status].label}
-                  </span>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_CONFIG[order.status].color}`}
+                    >
+                      <StatusIcon className="w-3.5 h-3.5" />
+                      {STATUS_CONFIG[order.status].label}
+                    </span>
+                    <button
+                      onClick={() => updatePaymentStatus(order.id, order.payment_status === 'paid' ? 'unpaid' : 'paid')}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors ${
+                        order.payment_status === 'paid'
+                          ? 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'
+                          : 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
+                      }`}
+                      aria-label={`Mark order as ${order.payment_status === 'paid' ? 'unpaid' : 'paid'}`}
+                    >
+                      {order.payment_status === 'paid' ? 'PAID' : 'UNPAID'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Meta */}
@@ -529,11 +564,20 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                     </button>
                   )}
                   <button
-                    onClick={() => setReceiptOrder(order)}
-                    className="px-3 py-2 rounded-lg border border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-50 transition-colors flex items-center gap-1"
-                    title="View receipt"
+                    onClick={() => openReceipt(order, 'kot')}
+                    className="px-3 py-2 rounded-lg border border-orange-300 text-orange-700 text-xs font-semibold hover:bg-orange-50 transition-colors flex items-center gap-1"
+                    title="Print kitchen receipt"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    KOT
+                  </button>
+                  <button
+                    onClick={() => openReceipt(order, 'customer')}
+                    className="px-3 py-2 rounded-lg border border-sage-300 text-sage-700 text-xs font-semibold hover:bg-sage-50 transition-colors flex items-center gap-1"
+                    title="Print customer receipt"
                   >
                     <ReceiptIcon className="w-3.5 h-3.5" />
+                    Receipt
                   </button>
                   <button
                     onClick={() => handleDelete(order.id, order.customer_name)}
@@ -567,7 +611,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={() => {
-                    setReceiptOrder(newOrderAlert);
+                    openReceipt(newOrderAlert, 'customer');
                     setNewOrderAlert(null);
                   }}
                   className="px-3 py-1.5 rounded-lg bg-sage-900 text-sage-50 text-xs font-semibold hover:bg-sage-800 transition-colors"
@@ -597,6 +641,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
         <ReceiptModal
           order={receiptOrder}
           cafeAddress={cafeAddress}
+          receiptType={receiptType}
           onClose={() => setReceiptOrder(null)}
         />
       )}

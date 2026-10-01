@@ -43,6 +43,7 @@ export type SiteSetting = {
 };
 
 export type PaymentMethod = 'cash' | 'online';
+export type PaymentStatus = 'paid' | 'unpaid';
 
 export type PaymentConfig = {
   cash_enabled: boolean;
@@ -70,6 +71,7 @@ export type Order = {
   status: 'pending' | 'preparing' | 'completed';
   created_at: string;
   payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
   transaction_id: string | null;
   payment_screenshot_url: string | null;
 };

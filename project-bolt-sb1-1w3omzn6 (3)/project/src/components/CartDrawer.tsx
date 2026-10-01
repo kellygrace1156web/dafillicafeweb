@@ -109,7 +109,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
     if (orderType === 'delivery') lines.push(`*Address:* ${address}`);
     lines.push(``, `*Items:*`);
     items.forEach((i) => {
-      lines.push(`  • ${i.name} x${i.quantity} — ${formatCurrency(i.price * i.quantity)}`);
+      lines.push(`  • ${i.name}${i.variant_name ? ` (${i.variant_name})` : ''} x${i.quantity} — ${formatCurrency(i.price * i.quantity)}`);
     });
     lines.push(
       ``,
@@ -152,11 +152,12 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
           table_number: tableNumber.trim(),
           address: address.trim(),
           items: items.map((i) => ({
-            id: i.id,
+            id: i.product_id,
             name: i.name,
             price: i.price,
             quantity: i.quantity,
             tax_percentage: i.tax_percentage,
+            variant_name: i.variant_name,
           })),
           subtotal,
           tax,
@@ -282,7 +283,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
                 )}
                 {placedOrder.items.map((item, i) => (
                   <div key={i} className="flex justify-between text-stone-700">
-                    <span>{item.name} ×{item.quantity}</span>
+                    <span>{item.name}{item.variant_name ? ` (${item.variant_name})` : ''} ×{item.quantity}</span>
                     <span>{formatCurrency(item.price * item.quantity)}</span>
                   </div>
                 ))}
@@ -350,7 +351,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
                   />
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-sm text-stone-900 truncate">
-                      {item.name}
+                      {item.name}{item.variant_name ? ` (${item.variant_name})` : ''}
                     </h4>
                     <p className="text-xs text-stone-500 mt-0.5">
                       {formatCurrency(item.price)} each
@@ -648,6 +649,7 @@ export function CartDrawer({ open, onClose, onOrderPlaced }: CartDrawerProps) {
         <ReceiptModal
           order={placedOrder}
           cafeAddress={cafeAddress}
+          receiptType="customer"
           onClose={() => setShowReceipt(false)}
         />
       )}

@@ -22,6 +22,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { supabase, type Order, type Product, type Category, type OrderItem } from '@/lib/supabase';
+import { getCartItemId } from '@/context/CartContext';
 import { formatCurrency } from '@/lib/format';
 import { CAFE_NAME } from '@/lib/constants';
 import { ReceiptModal } from '@/components/ReceiptModal';
@@ -35,7 +36,9 @@ type OrderType = 'dine-in' | 'takeaway' | 'delivery';
 
 type ManualCartItem = {
   id: string;
+  product_id: string;
   name: string;
+  variant_name?: string;
   price: number;
   quantity: number;
   tax_percentage: number;
@@ -77,6 +80,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
   const [posActiveCat, setPosActiveCat] = useState('');
   const [posSubmitting, setPosSubmitting] = useState(false);
   const [posError, setPosError] = useState('');
+  const [posVariantProduct, setPosVariantProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,7 +91,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
-      if (!cancelled && !error) setOrders(data as Order[]);
+      if (!cancelled && !error) setOrders((data as Order[]).map((order) => ({ ...order, payment_status: order.payment_status ?? 'unpaid' })));
       if (!cancelled) setLoading(false);
     }
     load();
@@ -166,7 +170,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
 
       if (error || !data) return;
 
-      const freshOrders = data as Order[];
+      const freshOrders = (data as Order[]).map((order) => ({ ...order, payment_status: order.payment_status ?? 'unpaid' }));
       const newPending: Order[] = [];
 
       freshOrders.forEach((o) => {
@@ -199,17 +203,23 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
   };
 
   const updatePaymentStatus = async (id: string, payment_status: Order['payment_status']) => {
-    const previous = orders.find((order) => order.id === id)?.payment_status;
+    const previous = orders.find((order) => order.id === id)?.payment_status ?? 'unpaid';
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, payment_status } : o)));
 
     try {
-      const { error } = await supabase.from('orders').update({ payment_status }).eq('id', id);
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ payment_status })
+        .eq('id', id)
+        .select('id, payment_status')
+        .maybeSingle();
       if (error) throw error;
-    } catch {
-      if (previous) {
-        setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, payment_status: previous } : o)));
-      }
-      alert('Failed to update payment status');
+      if (!data) throw new Error('The order was not found.');
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, payment_status: data.payment_status } : o)));
+    } catch (err) {
+      console.error('Failed to update payment status:', err);
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, payment_status: previous } : o)));
+      alert('Payment status could not be saved. Please try again.');
     }
   };
 
@@ -285,13 +295,26 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
     resetPOS();
   };
 
-  const addToCart = (p: Product) => {
+  const addToCart = (p: Product, variant = p.variants[0]) => {
+    const variantName = variant?.name;
+    const cartItemId = getCartItemId(p.id, variantName);
     setPosCart((prev) => {
-      const existing = prev.find((i) => i.id === p.id);
+      const existing = prev.find((item) => item.id === cartItemId);
       if (existing) {
-        return prev.map((i) => (i.id === p.id ? { ...i, quantity: i.quantity + 1 } : i));
+        return prev.map((item) => (item.id === cartItemId ? { ...item, quantity: item.quantity + 1 } : item));
       }
-      return [...prev, { id: p.id, name: p.name, price: p.price, quantity: 1, tax_percentage: p.tax_percentage ?? 0 }];
+      return [
+        ...prev,
+        {
+          id: cartItemId,
+          product_id: p.id,
+          name: p.name,
+          variant_name: variantName,
+          price: variant?.price ?? p.price,
+          quantity: 1,
+          tax_percentage: p.tax_percentage ?? 0,
+        },
+      ];
     });
   };
 
@@ -345,11 +368,12 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
     setPosSubmitting(true);
     try {
       const items: OrderItem[] = posCart.map((i) => ({
-        id: i.id,
+        id: i.product_id,
         name: i.name,
         price: i.price,
         quantity: i.quantity,
         tax_percentage: i.tax_percentage,
+        variant_name: i.variant_name,
       }));
 
       const { data, error } = await supabase
@@ -783,7 +807,7 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                           >
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-stone-800 truncate">
-                                {item.name}
+                                {item.name}{item.variant_name ? ` (${item.variant_name})` : ''}
                               </p>
                               <p className="text-xs text-stone-500">
                                 {formatCurrency(item.price)} each
@@ -872,11 +896,16 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                       {/* Products grid */}
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto overscroll-contain flex-1" style={{ maxHeight: 'calc(92vh - 300px)' }}>
                         {posFilteredProducts.map((p) => {
-                          const inCart = posCart.find((i) => i.id === p.id);
+                          const inCart = posCart
+                            .filter((i) => i.product_id === p.id)
+                            .reduce(
+                              (acc, i) => (acc ? { ...acc, quantity: acc.quantity + i.quantity } : i),
+                              undefined as ManualCartItem | undefined
+                            );
                           return (
                             <button
                               key={p.id}
-                              onClick={() => addToCart(p)}
+                              onClick={() => (p.variants.length > 1 ? setPosVariantProduct(p) : addToCart(p))}
                               disabled={!p.is_in_stock}
                               className={`relative flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                                 inCart
@@ -898,7 +927,9 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                                 {p.name}
                               </p>
                               <p className="text-xs font-bold text-sage-900">
-                                {formatCurrency(p.price)}
+                                {p.variants.length > 0
+                                  ? `From ${formatCurrency(Math.min(...p.variants.map((variant) => variant.price)))}`
+                                  : formatCurrency(p.price)}
                               </p>
                             </button>
                           );
@@ -947,6 +978,47 @@ export function AdminOrders({ refreshTrigger, onOrdersChanged }: AdminOrdersProp
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POS variant picker modal */}
+      {posVariantProduct && (
+        <div
+          className="fixed inset-0 z-[85] bg-stone-950/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPosVariantProduct(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-stone-900">{posVariantProduct.name}</h3>
+                <p className="text-xs text-stone-500 mt-0.5">Select a size</p>
+              </div>
+              <button
+                onClick={() => setPosVariantProduct(null)}
+                className="p-1.5 rounded-full hover:bg-stone-100 transition-colors"
+              >
+                <X className="w-4 h-4 text-stone-500" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {posVariantProduct.variants.map((variant) => (
+                <button
+                  key={variant.name}
+                  onClick={() => {
+                    addToCart(posVariantProduct, variant);
+                    setPosVariantProduct(null);
+                  }}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-stone-200 hover:border-sage-400 hover:bg-sage-50/50 transition-all text-left"
+                >
+                  <span className="font-semibold text-stone-800 text-sm">{variant.name}</span>
+                  <span className="font-bold text-sage-900 text-sm">{formatCurrency(variant.price)}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>

@@ -12,12 +12,23 @@ function mapCategory(raw: Record<string, unknown>): Category {
 }
 
 function mapProduct(raw: Record<string, unknown>): Product {
+  const variants = Array.isArray(raw.variants)
+    ? raw.variants.flatMap((variant) => {
+        if (!variant || typeof variant !== 'object') return [];
+        const value = variant as Record<string, unknown>;
+        const name = String(value.name ?? '').trim();
+        const price = Number(value.price);
+        return name && Number.isFinite(price) && price >= 0 ? [{ name, price }] : [];
+      })
+    : [];
+
   return {
     id: String(raw.id ?? ''),
     category_id: String(raw.category_id ?? ''),
     name: String(raw.name ?? 'Unnamed'),
     description: String(raw.description ?? ''),
     price: Number(raw.price ?? 0),
+    variants,
     image_url: String(raw.image_url ?? ''),
     is_veg: Boolean(raw.is_veg ?? true),
     is_in_stock: Boolean(raw.is_in_stock ?? true),

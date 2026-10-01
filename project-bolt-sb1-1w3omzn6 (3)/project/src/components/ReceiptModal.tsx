@@ -91,7 +91,7 @@ export function ReceiptModal({ order, cafeAddress, receiptType, onClose }: Recei
                 {order.items.map((item) => (
                   <div key={`${item.id}-${item.name}`} className="flex justify-between gap-4 text-base">
                     <span className="font-semibold">
-                      <span className="font-black text-lg">{item.quantity}×</span> {item.name}
+                      <span className="font-black text-lg">{item.quantity}×</span> {item.name}{item.variant_name ? ` (${item.variant_name})` : ''}
                     </span>
                     <span className="font-semibold whitespace-nowrap">{formatCurrency(item.price * item.quantity)}</span>
                   </div>
@@ -164,7 +164,7 @@ export function ReceiptModal({ order, cafeAddress, receiptType, onClose }: Recei
               <div className="py-3 space-y-1.5 border-b border-stone-200">
                 {order.items.map((item) => (
                   <div key={`${item.id}-${item.name}`} className="flex justify-between text-xs">
-                    <span className="text-stone-700">{item.name} ×{item.quantity}</span>
+                    <span className="text-stone-700">{item.name}{item.variant_name ? ` (${item.variant_name})` : ''} ×{item.quantity}</span>
                     <span className="font-medium">{formatCurrency(item.price * item.quantity)}</span>
                   </div>
                 ))}

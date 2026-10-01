@@ -13,12 +13,18 @@ export type Category = {
   created_at: string;
 };
 
+export type ProductVariant = {
+  name: string;
+  price: number;
+};
+
 export type Product = {
   id: string;
   category_id: string;
   name: string;
   description: string;
   price: number;
+  variants: ProductVariant[];
   image_url: string;
   is_veg: boolean;
   is_in_stock: boolean;
@@ -34,6 +40,7 @@ export type OrderItem = {
   price: number;
   quantity: number;
   tax_percentage?: number;
+  variant_name?: string;
 };
 
 export type SiteSetting = {

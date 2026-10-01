@@ -10,7 +10,7 @@ import {
   Upload,
   Link as LinkIcon,
 } from 'lucide-react';
-import { supabase, type Category, type Product } from '@/lib/supabase';
+import { supabase, type Category, type Product, type ProductVariant } from '@/lib/supabase';
 import { formatCurrency, slugify } from '@/lib/format';
 
 type AdminProductsProps = {
@@ -30,6 +30,7 @@ type FormData = {
   category_id: string;
   is_veg: boolean;
   is_in_stock: boolean;
+  variants: ProductVariant[];
 };
 
 const emptyForm: FormData = {
@@ -41,6 +42,7 @@ const emptyForm: FormData = {
   category_id: '',
   is_veg: true,
   is_in_stock: true,
+  variants: [],
 };
 
 export function AdminProducts({
@@ -89,6 +91,7 @@ export function AdminProducts({
       category_id: p.category_id,
       is_veg: p.is_veg,
       is_in_stock: p.is_in_stock,
+      variants: p.variants ?? [],
     });
     setShowForm(true);
   };
@@ -117,9 +120,47 @@ export function AdminProducts({
     reader.readAsDataURL(file);
   };
 
+  const addVariant = () => {
+    setEditing((prev) => ({
+      ...prev,
+      variants: [...prev.variants, { name: '', price: 0 }],
+    }));
+  };
+
+  const updateVariant = (index: number, field: keyof ProductVariant, value: string) => {
+    setEditing((prev) => ({
+      ...prev,
+      variants: prev.variants.map((variant, variantIndex) =>
+        variantIndex === index
+          ? { ...variant, [field]: field === 'price' ? Number(value) : value }
+          : variant
+      ),
+    }));
+  };
+
+  const removeVariant = (index: number) => {
+    setEditing((prev) => ({
+      ...prev,
+      variants: prev.variants.filter((_, variantIndex) => variantIndex !== index),
+    }));
+  };
+
   const handleSave = async () => {
     if (!editing.name.trim() || !editing.price || !editing.category_id) {
       alert('Please fill in name, price, and category');
+      return;
+    }
+    if (editing.variants.some((variant) => !variant.name.trim() || !Number.isFinite(variant.price) || variant.price < 0)) {
+      alert('Every size variant needs a name and a valid price');
+      return;
+    }
+    const variants = editing.variants.map((variant) => ({
+      name: variant.name.trim(),
+      price: Number(variant.price),
+    }));
+    const variantNames = variants.map((variant) => variant.name.toLowerCase());
+    if (new Set(variantNames).size !== variantNames.length) {
+      alert('Size variant names must be unique');
       return;
     }
     setSaving(true);
@@ -135,6 +176,7 @@ export function AdminProducts({
         category_id: editing.category_id,
         is_veg: editing.is_veg,
         is_in_stock: editing.is_in_stock,
+        variants,
       };
       if (editing.id) {
         const { error } = await supabase.from('products').update(payload).eq('id', editing.id);
@@ -146,6 +188,7 @@ export function AdminProducts({
       await onProductsChanged();
       setShowForm(false);
     } catch (err) {
+      console.error('Failed to save product:', err);
       alert('Failed to save product. ' + (err as Error).message);
     } finally {
       setSaving(false);
@@ -336,7 +379,7 @@ export function AdminProducts({
                     </td>
                     <td className="px-5 py-3 text-stone-600">{catNameById(p.category_id)}</td>
                     <td className="px-5 py-3 font-semibold text-sage-900">
-                      {formatCurrency(p.price)}
+                      {p.variants.length > 0 ? `From ${formatCurrency(Math.min(...p.variants.map((variant) => variant.price)))}` : formatCurrency(p.price)}
                     </td>
                     <td className="px-5 py-3">
                       {p.is_veg ? (
@@ -465,6 +508,56 @@ export function AdminProducts({
                   />
                   <p className="text-[10px] text-stone-400 mt-1">0 = default 10%</p>
                 </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wide">
+                    Size Variants
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addVariant}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-sage-700 hover:text-sage-900"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add size
+                  </button>
+                </div>
+                {editing.variants.length === 0 ? (
+                  <p className="text-xs text-stone-400 bg-stone-50 rounded-lg px-3 py-2.5">
+                    No sizes added. The base price will be used.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {editing.variants.map((variant, index) => (
+                      <div key={`${index}-${variant.name}`} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={variant.name}
+                          onChange={(e) => updateVariant(index, 'name', e.target.value)}
+                          placeholder="e.g. Large"
+                          className="flex-1 px-3 py-2 rounded-lg border border-stone-200 text-sm outline-none focus:border-sage-400"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          value={variant.price}
+                          onChange={(e) => updateVariant(index, 'price', e.target.value)}
+                          placeholder="Price"
+                          className="w-28 px-3 py-2 rounded-lg border border-stone-200 text-sm outline-none focus:border-sage-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeVariant(index)}
+                          className="p-2 text-stone-400 hover:text-red-600 transition-colors"
+                          aria-label={`Remove ${variant.name || 'size'} variant`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wide mb-1.5">

@@ -12,8 +12,16 @@ function mapCategory(raw: Record<string, unknown>): Category {
 }
 
 function mapProduct(raw: Record<string, unknown>): Product {
-  const variants = Array.isArray(raw.variants)
-    ? raw.variants.flatMap((variant) => {
+  let rawVariants = raw.variants;
+  if (typeof rawVariants === 'string') {
+    try {
+      rawVariants = JSON.parse(rawVariants);
+    } catch {
+      rawVariants = [];
+    }
+  }
+  const variants = Array.isArray(rawVariants)
+    ? rawVariants.flatMap((variant) => {
         if (!variant || typeof variant !== 'object') return [];
         const value = variant as Record<string, unknown>;
         const name = String(value.name ?? '').trim();

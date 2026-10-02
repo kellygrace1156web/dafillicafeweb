@@ -47,7 +47,7 @@ const emptyForm: FormData = {
 
 export function AdminProducts({
   categories,
-  products,
+  products: propProducts,
   onProductsChanged,
   onCategoriesChanged,
 }: AdminProductsProps) {
@@ -62,6 +62,13 @@ export function AdminProducts({
   const [catSaving, setCatSaving] = useState(false);
   const [imageMode, setImageMode] = useState<'upload' | 'url'>('url');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [localProducts, setLocalProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    setLocalProducts(propProducts);
+  }, [propProducts]);
+
+  const products = localProducts;
 
   useEffect(() => {
     if (categories.length > 0 && !editing.category_id) {
@@ -178,13 +185,53 @@ export function AdminProducts({
         is_in_stock: editing.is_in_stock,
         variants,
       };
+
       if (editing.id) {
+        const optimisticProduct: Product = {
+          ...products.find((p) => p.id === editing.id)!,
+          name: payload.name,
+          description: payload.description,
+          price: payload.price,
+          tax_percentage: payload.tax_percentage,
+          image_url: payload.image_url,
+          category_id: payload.category_id,
+          is_veg: payload.is_veg,
+          is_in_stock: payload.is_in_stock,
+          variants,
+        };
+        setLocalProducts((prev) =>
+          prev.map((p) => (p.id === editing.id ? optimisticProduct : p))
+        );
+
         const { error } = await supabase.from('products').update(payload).eq('id', editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('products').insert([payload]);
+        const { data, error } = await supabase
+          .from('products')
+          .insert([payload])
+          .select()
+          .maybeSingle();
         if (error) throw error;
+        if (data) {
+          const newProduct: Product = {
+            id: data.id,
+            category_id: data.category_id,
+            name: data.name,
+            description: data.description ?? '',
+            price: Number(data.price),
+            variants,
+            image_url: data.image_url,
+            is_veg: data.is_veg,
+            is_in_stock: data.is_in_stock,
+            stock_quantity: Number(data.stock_quantity ?? 0),
+            tax_percentage: Number(data.tax_percentage ?? 0),
+            sort_order: Number(data.sort_order ?? 0),
+            created_at: data.created_at,
+          };
+          setLocalProducts((prev) => [...prev, newProduct]);
+        }
       }
+
       await onProductsChanged();
       setShowForm(false);
     } catch (err) {
@@ -196,14 +243,16 @@ export function AdminProducts({
   };
 
   const handleDelete = async (id: string) => {
+    setLocalProducts((prev) => prev.filter((p) => p.id !== id));
+    setConfirmDelete(null);
     setSaving(true);
     try {
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
-      setConfirmDelete(null);
       await onProductsChanged();
     } catch (err) {
       alert('Failed to delete product. ' + (err as Error).message);
+      setLocalProducts((prev) => [...prev, propProducts.find((p) => p.id === id)!].sort((a, b) => a.sort_order - b.sort_order));
     } finally {
       setSaving(false);
     }
